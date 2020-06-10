@@ -1,6 +1,7 @@
 import sys
 import json
 import subprocess
+from subprocess import CalledProcessError
 from pathlib import Path
 from tqdm.auto import tqdm
 
@@ -20,7 +21,7 @@ def windows(paths, keep_active):
     wdFormatPDF = 17
 
     if paths["batch"]:
-        for docx_filepath in tqdm(sorted(Path(paths["input"]).glob("*.docx"))):
+        for docx_filepath in tqdm(sorted(Path(paths["input"]).glob("*.do[ct]x"))):
             pdf_filepath = Path(paths["output"]) / (str(docx_filepath.stem) + ".pdf")
             doc = word.Documents.Open(str(docx_filepath))
             doc.SaveAs(str(pdf_filepath), FileFormat=wdFormatPDF)
@@ -57,8 +58,10 @@ def macos(paths, keep_active):
             if not line:
                 break
             yield line.decode("utf-8")
+        if process.returncode:
+            raise CalledProcessError(f'osascript failed')
 
-    total = len(list(Path(paths["input"]).glob("*.docx"))) if paths["batch"] else 1
+    total = len(list(Path(paths["input"]).glob("*.do[ct]x"))) if paths["batch"] else 1
     pbar = tqdm(total=total)
     for line in run(cmd):
         try:
@@ -86,7 +89,7 @@ def resolve_paths(input_path, output_path):
         output["output"] = output_path
     else:
         output["batch"] = False
-        assert str(input_path).endswith(".docx")
+        assert str(input_path).endswith(".docx") or str(input_path).endswith(".dotx")
         output["input"] = str(input_path)
         if output_path and output_path.is_dir():
             output_path = str(output_path / (str(input_path.stem) + ".pdf"))
